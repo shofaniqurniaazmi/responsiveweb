@@ -7,19 +7,26 @@ import GrafikPie from '../components/GrafikPie';
 import RiwayatDeteksi from '../components/RiwayatDeteksi';
 import TotalDeteksi from '../components/TotalDeteksi';
 import Navbar from '../components/Navbar';
+import { supabase } from '../services/supabase';
 
 const Home = () => {
   const [detectionData, setDetectionData] = useState([]); 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const response = await fetch('/api/deteksi'); 
-        const data = await response.json();
-        setDetectionData(data); 
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
+  try {
+    const { data, error } = await supabase
+      .from('history_deteksi')  // Nama tabel di Supabase
+      .select('jenis_kerusakan');  // Pilih semua kolom
+
+    if (error) {
+      console.error('Error fetching data:', error.message);
+    } else {
+      setDetectionData(data);  // Simpan data yang diambil
+    }
+  } catch (error) {
+    console.error('Error fetching data:', error);
+  }
+};
 
     fetchData();
   }, []); 

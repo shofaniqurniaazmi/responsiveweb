@@ -12,49 +12,37 @@ const Statistics = () => {
   useEffect(() => {
     const fetchData = async () => {
       const { data, error } = await supabase
-        .from('history_deteksi') 
-        .select('jenis_kerusakan,volume'); 
-
+        .from('history_deteksi')
+        .select('jenis_kerusakan,volume', { count: 'exact' });
+  
       if (error) {
         setError(error.message); // Simpan pesan error
       } else {
-        const validData = data.filter(item => item.jenis_kerusakan?.trim());
-
+        const validData = data.filter(item => item.jenis_kerusakan?.trim() && item.volume != null);
+  
+        //total deteksi
         const counts = validData.reduce((acc, curr) => {
           const category = curr.jenis_kerusakan.trim();
           acc[category] = (acc[category] || 0) + 1;
           return acc;
         }, {});
-
-        const totalVolumeSum = validData.reduce((sum, curr)=>sum+(curr.volume || 0), 0);
+  
+        //total volume
+        const totalVolumeSum = validData.reduce(
+          (sum, curr) => sum + (curr.volume || 0), 0
+        );
         const sumVolumetotal = totalVolumeSum.toFixed(2);
+  
         setCategoryCounts(counts);
-        setTotalData(validData.length);
+        setTotalData(validData.length); // Menggunakan validData.length sebagai total deteksi
         setTotalVolume(sumVolumetotal);
       }
       setLoading(false);
     };
-
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      const { count, error } = await supabase
-        .from('history_deteksi') 
-        .select('*', { count: 'exact' }); 
-
-      if (error) {
-        console.error('Error fetching data:', error);
-      } else {
-        setTotalData(count);
-      }
-    };
-
-    fetchData();
-  }, []);
-
   
+    fetchData();
+  }, []);
+    
 
   // Responsiveness adjustments
   const boxPadding = useBreakpointValue({ base: 2, md: 4 });
