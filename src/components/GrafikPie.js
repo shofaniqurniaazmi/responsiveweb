@@ -11,10 +11,12 @@ import {
   Legend,
 } from 'chart.js';
 
+// Registrasi komponen Chart.js
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Grafik = () => {
   const [categoryCounts, setCategoryCounts] = useState({});
+  const [categoryVolumes, setCategoryVolumes] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -22,11 +24,12 @@ const Grafik = () => {
     const fetchData = async () => {
       const { data, error } = await supabase
         .from('history_deteksi')
-        .select('jenis_kerusakan');
+        .select('jenis_kerusakan, volume');
 
       if (error) {
         setError(error.message);
       } else {
+        // Hitung jumlah kejadian per kategori
         const counts = data.reduce((acc, curr) => {
           const category = curr.jenis_kerusakan;
           if (category) {
@@ -34,7 +37,18 @@ const Grafik = () => {
           }
           return acc;
         }, {});
+
+        // Hitung total volume per kategori
+        const volumes = data.reduce((acc, curr) => {
+          const category = curr.jenis_kerusakan;
+          if (category && curr.volume != null) {
+            acc[category] = (acc[category] || 0) + (curr.volume || 0);
+          }
+          return acc;
+        }, {});
+
         setCategoryCounts(counts);
+        setCategoryVolumes(volumes);
       }
       setLoading(false);
     };
@@ -49,11 +63,12 @@ const Grafik = () => {
     return <Text color="red.500">Error: {error}</Text>;
   }
 
-  // Data for Pie Chart
+  // Data untuk Pie Chart
   const pieChartData = {
     labels: Object.keys(categoryCounts),
     datasets: [
       {
+        label: 'Jumlah Kejadian',
         data: Object.values(categoryCounts),
         backgroundColor: [
           '#FF6384',
@@ -64,10 +79,22 @@ const Grafik = () => {
           '#FF9F40',
         ],
       },
+      {
+        label: 'Total Volume',
+        data: Object.keys(categoryCounts).map(category => categoryVolumes[category] || 0),
+        backgroundColor: [
+          '#FF6384',
+          '#36A2EB',
+          '#FFCE56',
+          '#4BC0C0',
+          '#9966FF',
+          '#FF9F40',
+        ], // Warna untuk Total Volume
+      },
     ],
   };
 
-  // Chart options
+  // Opsi untuk Pie Chart
   const options = {
     responsive: true,
     maintainAspectRatio: false,
@@ -75,7 +102,15 @@ const Grafik = () => {
       legend: { position: 'top' },
       tooltip: {
         callbacks: {
-          label: context => `${context.label}: ${context.raw} kejadian`,
+          label: context => {
+            const label = context.label;
+            const value = context.raw;
+            if (context.datasetIndex === 0) {
+              return `${label}: ${value} kejadian`; // Jumlah kejadian
+            } else {
+              return `${label}: ${value.toFixed(2)} m³`; // Volume per kategori
+            }
+          },
         },
       },
     },
