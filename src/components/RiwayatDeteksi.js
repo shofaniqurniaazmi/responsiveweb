@@ -17,27 +17,45 @@ export const exportToCSV = (data, filename) => {
 
 const RiwayatDeteksi = () => {
   const [riwayatData, setRiwayatData] = useState([]);
+  const [allData, setAllData] = useState([]); // Store all data for CSV export
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1); // Track the current page for load more
+  const [limit] = useState(20); // Limit of data per page for table display
 
   useEffect(() => {
     const fetchData = async () => {
       const { data, error } = await supabase
-        .from('history_deteksi') 
-        .select('id, jenis_kerusakan, longitude, latitude, area_kerusakan, kedalaman_rata_rata, volume, waktu_deteksi').order("waktu_deteksi",{ascending :false}).limit(20); 
+        .from('history_deteksi')
+        .select('id, jenis_kerusakan, longitude, latitude, area_kerusakan, kedalaman_rata_rata, volume, waktu_deteksi')
+        .order("waktu_deteksi", { ascending: false })
+        .range(0, limit - 1); // Only fetch 20 records for the table
+
       if (error) {
         setError(error.message);
       } else {
         setRiwayatData(data);
       }
+
+      // Fetch all data for CSV export
+      const { data: allData, error: allDataError } = await supabase
+        .from('history_deteksi')
+        .select('id, jenis_kerusakan, longitude, latitude, area_kerusakan, kedalaman_rata_rata, volume, waktu_deteksi');
+
+      if (allDataError) {
+        setError(allDataError.message);
+      } else {
+        setAllData(allData);
+      }
+
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [limit]);
 
   const handleExportToCSV = () => {
-    const csvData = riwayatData.map((item, index) => ({
+    const csvData = allData.map((item, index) => ({
       No: index + 1,
       "Jenis Kerusakan": item.jenis_kerusakan,
       Longitude: item.longitude || "Data tidak tersedia",
@@ -48,6 +66,23 @@ const RiwayatDeteksi = () => {
       "Waktu Deteksi": item.waktu_deteksi,
     }));
     exportToCSV(csvData, 'riwayat_deteksi.csv');
+  };
+
+  const handleLoadMore = async () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+
+    const { data, error } = await supabase
+      .from('history_deteksi')
+      .select('id, jenis_kerusakan, longitude, latitude, area_kerusakan, kedalaman_rata_rata, volume, waktu_deteksi')
+      .order("waktu_deteksi", { ascending: false })
+      .range(limit * nextPage - limit, limit * nextPage - 1); // Fetch the next set of data
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setRiwayatData(prevData => [...prevData, ...data]);
+    }
   };
 
   if (loading) {
@@ -100,6 +135,14 @@ const RiwayatDeteksi = () => {
           ))}
         </Tbody>
       </Table>
+      <Flex justify="center" mt={4}>
+        <Button
+          colorScheme="teal"
+          onClick={handleLoadMore}
+        >
+          Load More
+        </Button>
+      </Flex>
     </Box>
   );
 };
